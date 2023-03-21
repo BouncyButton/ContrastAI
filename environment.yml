@@ -1,0 +1,6 @@
+name: contrast_ai
+dependencies:
+  - numpy
+  - scikit-learn
+  - pandas
+  - matplotlib
