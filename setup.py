@@ -31,6 +31,7 @@ CLASSIFIERS = ['Intended Audience :: Science/Research',
                'Programming Language :: Python :: 3.6',
                'Programming Language :: Python :: 3.7']
 
+print("packages:", find_packages())
 setup(name=DISTNAME,
       version=VERSION,
       maintainer=MAINTAINER,

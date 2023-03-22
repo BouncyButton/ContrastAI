@@ -1,3 +1,5 @@
 /contrast_ai/contrast_ai.egg-info/
 /venv/
 /dist/
+/notebooks/data/
+/notebooks/wandb/
