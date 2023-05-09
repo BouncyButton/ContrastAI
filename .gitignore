@@ -3,3 +3,6 @@
 /dist/
 /notebooks/data/
 /notebooks/wandb/
+/*.egg-info/
+/contrast_ai.egg-info/
+/notebooks/artifacts/

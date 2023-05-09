@@ -4,3 +4,5 @@ dependencies:
   - scikit-learn
   - pandas
   - matplotlib
+  - wandb
+  - pydicom
