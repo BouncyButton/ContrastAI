@@ -6,3 +6,4 @@ dependencies:
   - matplotlib
   - wandb
   - pydicom
+  - tqdm
