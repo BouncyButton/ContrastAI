@@ -4,6 +4,7 @@ It also includes common transformation functions (e.g., get_transform, __scale_w
 """
 import random
 import numpy as np
+import torch
 import torch.utils.data as data
 from PIL import Image
 import torchvision.transforms as transforms
@@ -92,7 +93,8 @@ def get_transform(opt, params=None, grayscale=False, method=Image.BICUBIC, conve
         if params is None:
             transform_list.append(transforms.RandomCrop(opt.crop_size))
         else:
-            transform_list.append(transforms.Lambda(lambda img: __crop(img, params['crop_pos'], opt.crop_size)))
+            transform_list.append(transforms.Lambda(
+                lambda img: __crop(img, params['crop_pos'], opt.crop_size, avoid_black=opt.avoid_black)))
 
     if opt.preprocess == 'none':
         transform_list.append(transforms.Lambda(lambda img: __make_power_2(img, base=4, method=method)))
@@ -132,13 +134,27 @@ def __scale_width(img, target_size, crop_size, method=Image.BICUBIC):
     return img.resize((w, h), method)
 
 
-def __crop(img, pos, size):
-    ow, oh = img.size
+def __crop(img, pos, size, avoid_black=False):
     x1, y1 = pos
-    tw = th = size
-    if (ow > tw or oh > th):
-        return img.crop((x1, y1, x1 + tw, y1 + th))
-    return img
+    tw, th = size
+
+    if avoid_black:
+        # Create a mask of black areas
+        threshold = 0.0  # Threshold for black areas
+        mask = img > threshold
+
+        # Calculate the bounding box of non-black regions
+        indices = torch.nonzero(mask)
+        x_min, _ = torch.min(indices[:, 1]), torch.min(indices[:, 0])
+        x_max, _ = torch.max(indices[:, 1]), torch.max(indices[:, 0])
+
+        # Adjust crop position to avoid black areas
+        x1 = max(x_min.item(), x1)
+        y1 = max(x_min.item(), y1)
+        x1 = min(x1, x_max.item() - tw)
+        y1 = min(y1, x_max.item() - th)
+
+    return img.crop((x1, y1, x1 + tw, y1 + th))
 
 
 def __flip(img, flip):
