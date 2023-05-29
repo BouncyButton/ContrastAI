@@ -60,23 +60,37 @@ class BaseDataset(data.Dataset, ABC):
         """
         pass
 
+import random
 
-def get_params(opt, size):
+def get_params(opt, A):
+    size = A.size
     w, h = size
     new_h = h
     new_w = w
+    threshold = opt.crop_threshold
+
     if opt.preprocess == 'resize_and_crop':
         new_h = new_w = opt.load_size
     elif opt.preprocess == 'scale_width_and_crop':
         new_w = opt.load_size
         new_h = opt.load_size * h // w
 
-    x = random.randint(0, np.maximum(0, new_w - opt.crop_size))
-    y = random.randint(0, np.maximum(0, new_h - opt.crop_size))
+    crop_average = 0.0
+    x = random.randint(0, max(0, new_w - opt.crop_size))
+    y = random.randint(0, max(0, new_h - opt.crop_size))
+
+    while crop_average < threshold:
+        x = random.randint(0, max(0, new_w - opt.crop_size))
+        y = random.randint(0, max(0, new_h - opt.crop_size))
+
+        crop = A.crop((x, y, x + opt.crop_size, y + opt.crop_size))
+        crop_array = np.array(crop)
+        crop_average = np.mean(crop_array)
 
     flip = random.random() > 0.5
 
     return {'crop_pos': (x, y), 'flip': flip}
+
 
 
 def get_transform(opt, params=None, grayscale=False, method=Image.BICUBIC, convert=True):
@@ -93,8 +107,7 @@ def get_transform(opt, params=None, grayscale=False, method=Image.BICUBIC, conve
         if params is None:
             transform_list.append(transforms.RandomCrop(opt.crop_size))
         else:
-            transform_list.append(transforms.Lambda(
-                lambda img: __crop(img, params['crop_pos'], opt.crop_size, avoid_black=opt.avoid_black)))
+            transform_list.append(transforms.Lambda(lambda img: __crop(img, params['crop_pos'], opt.crop_size)))
 
     if opt.preprocess == 'none':
         transform_list.append(transforms.Lambda(lambda img: __make_power_2(img, base=4, method=method)))
@@ -134,27 +147,13 @@ def __scale_width(img, target_size, crop_size, method=Image.BICUBIC):
     return img.resize((w, h), method)
 
 
-def __crop(img, pos, size, avoid_black=False):
+def __crop(img, pos, size):
+    ow, oh = img.size
     x1, y1 = pos
-    tw, th = size
-
-    if avoid_black:
-        # Create a mask of black areas
-        threshold = 0.0  # Threshold for black areas
-        mask = img > threshold
-
-        # Calculate the bounding box of non-black regions
-        indices = torch.nonzero(mask)
-        x_min, _ = torch.min(indices[:, 1]), torch.min(indices[:, 0])
-        x_max, _ = torch.max(indices[:, 1]), torch.max(indices[:, 0])
-
-        # Adjust crop position to avoid black areas
-        x1 = max(x_min.item(), x1)
-        y1 = max(x_min.item(), y1)
-        x1 = min(x1, x_max.item() - tw)
-        y1 = min(y1, x_max.item() - th)
-
-    return img.crop((x1, y1, x1 + tw, y1 + th))
+    tw = th = size
+    if (ow > tw or oh > th):
+        return img.crop((x1, y1, x1 + tw, y1 + th))
+    return img
 
 
 def __flip(img, flip):
